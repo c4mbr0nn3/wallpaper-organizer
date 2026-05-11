@@ -7,6 +7,7 @@ A Python script that automatically organizes wallpaper images into folders based
 - 🖼️ Automatically detects image resolutions
 - 📁 Creates organized folders by resolution (1080p, 1440p, 4K, etc.)
 - ⚡ Fast processing using ImageMagick
+- 🤖 Hybrid classification: heuristic pre-filter (flexible tolerance) + optional AI batch via OpenAI-compatible API
 - 🔄 Handles filename conflicts automatically
 - 📝 Detailed console output with progress and warnings
 - 🛡️ Safe file handling with error recovery
@@ -37,6 +38,20 @@ identify -version
 
 Other formats (`.bmp`, `.gif`, `.webp`, `.tiff`, `.svg`) will be skipped with a warning message.
 
+## Classification (How folders are chosen)
+
+The script uses a two-pass hybrid approach — no API key required unless you want AI help.
+
+### Pass 1 — Heuristic (free, instant)
+1. **Exact match** against known resolutions
+2. **1% tolerance match** for near-miss dimensions
+3. **Aspect-ratio + height bucket** fallback
+
+If a match is found, the file is moved immediately.
+
+### Pass 2 — AI batch (optional)
+Files the heuristic cannot resolve are batched together. If `AI_API_URL` and `AI_API_KEY` are set via `.env` or environment variables, the batch is sent to an OpenAI-compatible API in a single request. Each result is validated against known folders. On any failure (network, parsing, missing config), files fall back to `other/`.
+
 ## Supported Resolutions
 
 The script automatically categorizes images into the following folders:
@@ -66,6 +81,13 @@ The script automatically categorizes images into the following folders:
    ```bash
    chmod +x wallpaper_organizer.py
    ```
+4. **(Optional) AI classification** — create a `.env` file in the working directory:
+   ```bash
+   AI_API_URL=https://api.openai.com/v1/chat/completions
+   AI_API_KEY=sk-...
+   AI_MODEL=gpt-4o-mini
+   ```
+   The script works without this; only unresolved files use the API when configured.
 
 ## How to Run
 
@@ -186,7 +208,7 @@ When a file with the same name already exists in the destination folder:
 - **Directory scope**: Only processes files in the root directory, not subdirectories
 - **External dependency**: Requires ImageMagick to be installed
 - **File operation**: Moves files (doesn't create copies)
-- **Resolution detection**: Relies on actual image dimensions, not filename
+- **Resolution detection**: Uses flexible heuristic + optional AI (OpenAI-compatible API)
 
 ## Contributing
 
