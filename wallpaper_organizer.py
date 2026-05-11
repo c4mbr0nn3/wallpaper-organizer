@@ -190,15 +190,10 @@ def _build_ai_payload(items):
 
 
 def ai_batch_classify(items):
-    """
-    Send unresolved items to OpenAI-compatible endpoint.
-    items: list of dicts with keys 'sha256', 'width', 'height'
-    Returns dict mapping sha256 → folder_name, or None on failure.
-    """
+    """Send unresolved items to OpenAI-compatible endpoint."""
     api_url = os.environ.get("AI_API_URL")
     api_key = os.environ.get("AI_API_KEY")
     if not api_url or not api_key:
-        print("Warning: AI_API_URL or AI_API_KEY not set — skipping AI pass.")
         return None
 
     payload = _build_ai_payload(items)
@@ -307,14 +302,17 @@ def organize_wallpapers(target_folder):
             ai_batch.append((file_path, width, height, sha, filename))
 
     # ── Second pass: AI batch ──────────────────────────────────
-    if ai_batch:
+    ai_available = bool(os.environ.get("AI_API_URL") and os.environ.get("AI_API_KEY"))
+    if ai_batch and ai_available:
         items_for_api = [
             {"sha256": sha, "width": w, "height": h}
             for _, w, h, sha, _ in ai_batch
         ]
         results = ai_batch_classify(items_for_api)
+    else:
+        results = None
 
-        for file_path, width, height, sha, filename in ai_batch:
+    for file_path, width, height, sha, filename in ai_batch:
             folder = "other"
             rule = None
             if results and sha in results:
