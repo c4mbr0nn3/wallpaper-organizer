@@ -52,7 +52,12 @@ HEURISTIC_TOLERANCE = 0.01
 
 AI_SYSTEM_PROMPT = (
     'You classify wallpaper images into resolution-based folders. '
-    'Return a JSON object mapping each sha256 hash to one of these folder names:\n'
+    'The input is a JSON array of objects, each with keys "sha256", "width", "height". '
+    'Respond with a JSON object where each KEY is the sha256 from the input '
+    '(exact copy, no modifications, no extra hashes) '
+    'and each VALUE is the folder name for that image.\n'
+    'Structure: {"<sha256_from_input>": "<folder_name>", ...}\n\n'
+    'Valid folder names:\n'
     '- "1080p": Standard Full HD (1920x1080)\n'
     '- "1440p": Quad HD (2560x1440)\n'
     '- "4k": Ultra HD (3840x2160)\n'
@@ -68,7 +73,9 @@ AI_SYSTEM_PROMPT = (
     '- Consider both width and height (portrait vs landscape does not matter).\n'
     '- If dimensions are close to a known resolution (within ~2 %), classify accordingly.\n'
     '- Only use "other" for genuinely unusual aspect ratios or sizes.\n'
-    '- Respond with ONLY valid JSON, no extra text.'
+    '- Every key must be a sha256 hex string.\n'
+    '- Every value must be one of the valid folder names listed above.\n'
+    '- Respond with ONLY the JSON object, no extra text.'
 )
 
 
@@ -212,6 +219,16 @@ def ai_batch_classify(items):
             result = json.loads(content)
             if not isinstance(result, dict):
                 raise ValueError("AI response is not a JSON object")
+            expected_shas = {item["sha256"] for item in items}
+            for key, val in result.items():
+                if not SHA256_RE.match(key):
+                    raise ValueError(f"Invalid SHA256 key: {key}")
+                if val not in VALID_FOLDERS:
+                    raise ValueError(f"Invalid folder value '{val}' for {key}")
+            missing = expected_shas - set(result.keys())
+            if missing:
+                print(f"  Warning: AI missing {len(missing)} entries, "
+                      f"will fall back to 'other'")
             return result
     except Exception as e:
         print(f"Warning: AI classification failed: {e}")
@@ -317,6 +334,10 @@ def organize_wallpapers(target_folder):
 
 def main():
     load_env()
+
+    if not os.environ.get("AI_API_URL") or not os.environ.get("AI_API_KEY"):
+        print("Note: AI_API_URL or AI_API_KEY not set — AI classification disabled. "
+              "Set them in .env or as env vars to enable.")
 
     if len(sys.argv) != 2:
         print("Usage: python wallpaper_organizer.py <path_to_wallpaper_folder>")
