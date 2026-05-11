@@ -94,7 +94,7 @@ The script automatically categorizes images into the following folders:
 Bundle into a single executable with **PyInstaller** — no Python or deps needed on the target machine:
 
 ```bash
-pip install pyinstaller
+pipx install pyinstaller
 pyinstaller --onefile wallpaper_organizer.py
 ```
 
