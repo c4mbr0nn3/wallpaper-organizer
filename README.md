@@ -89,6 +89,23 @@ The script automatically categorizes images into the following folders:
    ```
    The script works without this; only unresolved files use the API when configured.
 
+## Standalone binary (portable)
+
+Bundle into a single executable with **PyInstaller** — no Python or deps needed on the target machine:
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile wallpaper_organizer.py
+```
+
+The binary is at `dist/wallpaper_organizer` (Linux) or `dist/wallpaper_organizer.exe` (Windows). Copy it to any machine with ImageMagick installed and run:
+
+```bash
+./wallpaper_organizer /path/to/wallpaper/folder
+```
+
+> **Note:** ImageMagick (`identify`) must still be installed on each machine. PyInstaller only bundles the Python code, not external system tools.
+
 ## How to Run
 
 ### Basic Usage
