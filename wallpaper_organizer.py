@@ -221,7 +221,7 @@ def ai_batch_classify(items):
                 raise ValueError("AI response is not a JSON object")
             expected_shas = {item["sha256"] for item in items}
             for key, val in result.items():
-                if not SHA256_RE.match(key):
+                if key not in expected_shas:
                     raise ValueError(f"Invalid SHA256 key: {key}")
                 if val not in VALID_FOLDERS:
                     raise ValueError(f"Invalid folder value '{val}' for {key}")
