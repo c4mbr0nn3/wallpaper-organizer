@@ -143,7 +143,7 @@ def _within_tolerance(val, target):
 def heuristic_classify(width, height):
     """
     Three-tier heuristic: exact → tolerance → aspect-ratio + height bucket.
-    Returns folder name or None if undecided.
+    Returns (folder, rule_name) or (None, None) if undecided.
     """
     large = max(width, height)
     small = min(width, height)
@@ -151,20 +151,20 @@ def heuristic_classify(width, height):
     # Tier 1 — exact match
     for cw, ch, folder in CANONICAL_RESOLUTIONS:
         if large == cw and small == ch:
-            return folder
+            return folder, "exact"
 
     # Tier 2 — tolerance match
     for cw, ch, folder in CANONICAL_RESOLUTIONS:
         if _within_tolerance(large, cw) and _within_tolerance(small, ch):
-            return folder
+            return folder, "tolerance"
 
     # Tier 3 — aspect ratio + height bucket
     aspect = large / small
     for ar, h_target, folder in ASPECT_BUCKETS:
         if _within_tolerance(aspect, ar) and _within_tolerance(small, h_target):
-            return folder
+            return folder, "aspect"
 
-    return None
+    return None, None
 
 
 def _build_ai_payload(items):
@@ -218,7 +218,7 @@ def ai_batch_classify(items):
         return None
 
 
-def _move_file(file_path, dest_folder, filename, width, height):
+def _move_file(file_path, dest_folder, filename, width, height, rule=None):
     """Move file to dest_folder, resolving name conflicts."""
     dest_folder.mkdir(exist_ok=True)
     dest_path = dest_folder / filename
@@ -228,7 +228,8 @@ def _move_file(file_path, dest_folder, filename, width, height):
     if final_path != dest_path:
         print(f"  Renamed to avoid conflict: {final_path.name}")
 
-    print(f"  Moved: {filename} ({width}x{height}) -> {dest_folder.name}/")
+    label = f" [{rule}]" if rule else ""
+    print(f"  Moved: {filename} ({width}x{height}) -> {dest_folder.name}/{label}")
 
 
 def organize_wallpapers(target_folder):
@@ -278,11 +279,11 @@ def organize_wallpapers(target_folder):
             continue
 
         width, height = dims
-        folder = heuristic_classify(width, height)
+        folder, rule = heuristic_classify(width, height)
 
         if folder:
             _move_file(file_path, target_path / folder,
-                       filename, width, height)
+                       filename, width, height, rule)
             processed += 1
         else:
             sha = file_sha256(file_path)
@@ -298,13 +299,15 @@ def organize_wallpapers(target_folder):
 
         for file_path, width, height, sha, filename in ai_batch:
             folder = "other"
+            rule = None
             if results and sha in results:
                 candidate = results[sha]
                 if candidate in VALID_FOLDERS:
                     folder = candidate
+                    rule = "ai"
 
             _move_file(file_path, target_path / folder,
-                       filename, width, height)
+                       filename, width, height, rule)
             processed += 1
 
     print(f"\nSummary: {processed} processed, {skipped} skipped, "
